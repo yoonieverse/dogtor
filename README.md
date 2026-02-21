@@ -21,3 +21,6 @@ GitHub
 git add .
 git commit -m "A concise description of the changes"
 git push origin main
+
+
+git log --oneline

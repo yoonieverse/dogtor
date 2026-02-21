@@ -13,10 +13,10 @@ function HomePage() {
       minHeight: '100vh',
       gap: '24px',
     }}>
-      <img src="/src/assets/doggy.png" alt="Dogtor logo" style={{ maxWidth: '200px', height: 'auto' }} />
+      <img src="/src/assets/doggy1.png" alt="Dogtor logo" style={{ maxWidth: '400px', height: 'auto' }} />
       <h1>dogtor</h1>
       <Link to="/prescreen">
-        <button>prescreen now</button>
+        <button>Start Prescreening</button>
       </Link>
     </div>
   );
