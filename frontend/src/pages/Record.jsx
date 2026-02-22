@@ -16,10 +16,51 @@ function Record() {
   const [isLoading, setIsLoading] = useState(false);
   const location = useLocation();
 
-  const { prescreeningData } = location.state || {};
+  // Get prescreening data from location state or sessionStorage
+  const getPrescreeningData = () => {
+    // First try location state (if navigated directly from prescreening)
+    if (location.state?.prescreeningData) {
+      // Also save to sessionStorage for persistence
+      sessionStorage.setItem('prescreeningData', JSON.stringify(location.state.prescreeningData));
+      return location.state.prescreeningData;
+    }
+    // Fallback to sessionStorage (if navigated from body visual)
+    try {
+      const stored = sessionStorage.getItem('prescreeningData');
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      return {};
+    }
+  };
+
+  const prescreeningData = getPrescreeningData();
 
   const [showTranscriptPopup, setShowTranscriptPopup] = useState(false);
   const hasStartedConversation = useRef(false);
+
+  // Get body parts from sessionStorage
+  const getBodyParts = () => {
+    try {
+      const stored = sessionStorage.getItem('selectedBodyParts');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  // Build patient context from prescreening and body visual data
+  const getPatientContext = () => {
+    const bodyParts = getBodyParts();
+    const context = {
+      prescreening: prescreeningData || {},
+      bodyParts: bodyParts,
+    };
+    // Debug logging
+    console.log('Patient context:', context);
+    console.log('Prescreening data:', prescreeningData);
+    console.log('Body parts:', bodyParts);
+    return context;
+  };
 
   // Text-to-Speech
   const speak = (text) => {
@@ -31,7 +72,26 @@ function Record() {
   useEffect(() => {
     if (!hasStartedConversation.current && messages.length === 0) {
       hasStartedConversation.current = true;
-      const greeting = "Hi! I'm Dogster 🐶. What brings you here today?";
+      
+      // Personalize greeting based on body parts selected
+      const bodyParts = getBodyParts();
+      let greeting = "Hi! I'm Dogster 🐶. ";
+      
+      if (bodyParts && bodyParts.length > 0) {
+        const bodyPartLabels = {
+          head: 'head', chest: 'chest', tummy: 'tummy',
+          'left-arm': 'left arm', 'right-arm': 'right arm',
+          'left-hand': 'left hand', 'right-hand': 'right hand',
+          'left-leg': 'left leg', 'right-leg': 'right leg',
+          'left-foot': 'left foot', 'right-foot': 'right foot',
+          eyes: 'eyes', ears: 'ears', nose: 'nose', mouth: 'mouth',
+        };
+        const partsList = bodyParts.map(p => bodyPartLabels[p] || p).join(' and ');
+        greeting += `I see you mentioned something about your ${partsList}. Tell me more about what's going on!`;
+      } else {
+        greeting += "What brings you here today?";
+      }
+      
       setMessages([{ sender: "dog", text: greeting }]);
       setTranscript([`Doggy: ${greeting}`]);
       speak(greeting);
@@ -78,6 +138,7 @@ function Record() {
         body: JSON.stringify({
           message: textToSend,
           conversationHistory: messages, // Send conversation history for context
+          patientContext: getPatientContext(), // Send patient data from prescreening and body visual
         }),
       });
       

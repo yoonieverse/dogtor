@@ -24,7 +24,14 @@ function PrescreeningPage() {
 
   const handleSubmit = (e) => {
     const prescreeningData = {...formData};
+    // Store in sessionStorage so it persists through navigation
+    sessionStorage.setItem('prescreeningData', JSON.stringify(prescreeningData));
     navigate("/record", { state: { prescreeningData } });
+  };
+
+  const handleContinue = () => {
+    // Save prescreening data before navigating to body visual
+    sessionStorage.setItem('prescreeningData', JSON.stringify(formData));
   };
 
   return (
@@ -152,7 +159,7 @@ function PrescreeningPage() {
       />
 
       <div style={{ textAlign: "center", marginTop: "30px" }}>
-        <Link to="/bodyvisual">
+        <Link to="/bodyvisual" onClick={handleContinue}>
           <button style={buttonStyle}>Continue</button>
         </Link>
       </div>

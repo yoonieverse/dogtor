@@ -42,16 +42,63 @@ app.get('/', (req, res) => {
 app.post('/chat', async (req, res) => {
   console.log('POST /chat received');
   try {
-    const { message, conversationHistory } = req.body || {};
+    const { message, conversationHistory, patientContext } = req.body || {};
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Missing or invalid message' });
     }
 
+    // Build patient information summary from prescreening and body visual data
+    const buildPatientInfo = () => {
+      if (!patientContext) {
+        console.log('No patient context provided');
+        return '';
+      }
+      
+      const { prescreening = {}, bodyParts = [] } = patientContext;
+      console.log('Received patient context:', JSON.stringify(patientContext, null, 2));
+      const info = [];
+      
+      // Basic info
+      if (prescreening.age) info.push(`Age: ${prescreening.age}`);
+      if (prescreening.weight) info.push(`Weight: ${prescreening.weight}`);
+      if (prescreening.height) info.push(`Height: ${prescreening.height}`);
+      
+      // Health conditions
+      if (prescreening.chronicConditions) info.push(`Chronic conditions: ${prescreening.chronicConditions}`);
+      if (prescreening.allergies) info.push(`Allergies: ${prescreening.allergies}`);
+      if (prescreening.medications) info.push(`Current medications: ${prescreening.medications}`);
+      
+      // Medical history
+      if (prescreening.healthChanges) info.push(`Recent health changes: ${prescreening.healthChanges}`);
+      if (prescreening.weightChanges) info.push(`Weight changes: ${prescreening.weightChanges}`);
+      if (prescreening.pastMedicalHistory) info.push(`Past medical history: ${prescreening.pastMedicalHistory}`);
+      
+      // Body parts with pain/discomfort
+      if (bodyParts && bodyParts.length > 0) {
+        const bodyPartLabels = {
+          head: 'Head', chest: 'Chest', tummy: 'Tummy',
+          'left-arm': 'Left Arm', 'right-arm': 'Right Arm',
+          'left-hand': 'Left Hand', 'right-hand': 'Right Hand',
+          'left-leg': 'Left Leg', 'right-leg': 'Right Leg',
+          'left-foot': 'Left Foot', 'right-foot': 'Right Foot',
+          eyes: 'Eyes', ears: 'Ears', nose: 'Nose', mouth: 'Mouth',
+        };
+        const partsList = bodyParts.map(p => bodyPartLabels[p] || p).join(', ');
+        info.push(`Areas of concern/pain: ${partsList}`);
+      }
+      
+      return info.length > 0 ? `\n\nPatient Information:\n${info.join('\n')}` : '';
+    };
+
+    const patientInfo = buildPatientInfo();
+
     // Build messages array with system prompt and conversation history
+    const systemPrompt = "You are Dogster, a kind and friendly health helper who talks with children age 12 and under. Use very simple words, short sentences, and a warm, playful tone. Format every response so it is easy for kids to read: use short paragraphs, blank lines between sections, and a few friendly emojis. Prefer asking 2–4 gentle leading questions instead of long explanations or long lists. Keep responses concise. Encourage the child to involve a parent, guardian, or trusted adult when discussing symptoms. You may only answer questions related to health, the body, or basic wellness. If a question is outside health topics, politely say you can only help with health questions. If the child mentions mental health concerns, strong pain, injuries, or anything serious, kindly tell them to inform a parent/guardian right away and suggest talking to a real doctor, nurse, or healthcare professional. Make it clear you are a supportive assistant, not a doctor. When giving tips, keep them simple (1–2 gentle ideas) and safe for children." + patientInfo;
+
     const messages = [
       {
         role: "system",
-        content: "You are Dogster, a kind and friendly health helper who talks with children age 12 and under. Use very simple words, short sentences, and a warm, playful tone. Format every response so it is easy for kids to read: use short paragraphs, blank lines between sections, and a few friendly emojis. Prefer asking 2–4 gentle leading questions instead of long explanations or long lists. Keep responses concise. Encourage the child to involve a parent, guardian, or trusted adult when discussing symptoms. You may only answer questions related to health, the body, or basic wellness. If a question is outside health topics, politely say you can only help with health questions. If the child mentions mental health concerns, strong pain, injuries, or anything serious, kindly tell them to inform a parent/guardian right away and suggest talking to a real doctor, nurse, or healthcare professional. Make it clear you are a supportive assistant, not a doctor. When giving tips, keep them simple (1–2 gentle ideas) and safe for children."
+        content: systemPrompt
       }
     ];
 

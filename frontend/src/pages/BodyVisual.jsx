@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const SKIN = '#F4C2A1';
 const SELECTED = '#ff6b6b';
@@ -8,7 +8,14 @@ const BORDER_SELECTED = '2px solid #cc0000';
 
 export default function BodyVisual() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedParts, setSelectedParts] = useState([]);
+
+  // Save prescreening data from location state if available
+  const prescreeningData = location.state?.prescreeningData;
+  if (prescreeningData) {
+    sessionStorage.setItem('prescreeningData', JSON.stringify(prescreeningData));
+  }
 
   const toggle = (id) =>
     setSelectedParts(prev =>
