@@ -6,6 +6,8 @@ import { useLocation } from "react-router-dom";
 function Record() {
   const navigate = useNavigate();
   const recognitionRef = useRef(null);
+  const silenceTimeoutRef = useRef(null);
+  const ignoreResultsRef = useRef(false);
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -45,19 +47,53 @@ function Record() {
     }
   }, [questionIndex]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Send typed message
   const sendMessage = () => {
     if (!input.trim()) return;
 
-    setMessages((prev) => [...prev, { sender: "user", text: input }]);
-    setTranscript((prev) => [...prev, `User: ${input}`]);
+    const textToSend = input.trim();
+    setInput(""); // clear text box immediately
 
-    setInput("");
+    // Ignore any late speech results so they don't repopulate the input
+    ignoreResultsRef.current = true;
+    if (isListening) {
+      stopListening();
+    }
+
+    setMessages((prev) => [...prev, { sender: "user", text: textToSend }]);
+    setTranscript((prev) => [...prev, `User: ${textToSend}`]);
     setQuestionIndex((prev) => prev + 1);
+  };
+
+  // Stop listening and clear timeout
+  const stopListening = () => {
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsListening(false);
   };
 
   // Voice Recognition
   const startListening = () => {
+    // If already listening, stop it manually
+    if (isListening && recognitionRef.current) {
+      stopListening();
+      return;
+    }
+
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -68,22 +104,50 @@ function Record() {
 
     recognitionRef.current = new SpeechRecognition();
     recognitionRef.current.lang = "en-US";
+    recognitionRef.current.interimResults = true; // get live transcript while speaking
+    recognitionRef.current.continuous = true;
     recognitionRef.current.start();
 
+    ignoreResultsRef.current = false;
+    setInput(""); // clear so live transcript fills the box
     setIsListening(true);
 
+    // Set up silence timeout - stop listening after 5 seconds of silence
+    const resetSilenceTimeout = () => {
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+      }
+      silenceTimeoutRef.current = setTimeout(() => {
+        stopListening();
+      }, 5000); // 5 seconds of silence
+    };
+
+    // Start the silence timeout
+    resetSilenceTimeout();
+
     recognitionRef.current.onresult = (event) => {
-      const speechText = event.results[0][0].transcript;
+      if (ignoreResultsRef.current) return;
 
-      setMessages((prev) => [...prev, { sender: "user", text: speechText }]);
-      setTranscript((prev) => [...prev, `User: ${speechText}`]);
+      // Reset silence timeout whenever we get any result (user is speaking)
+      resetSilenceTimeout();
 
-      setIsListening(false);
-      setQuestionIndex((prev) => prev + 1);
+      // Build full transcript from all results (interim + final)
+      let fullText = "";
+      for (let i = 0; i < event.results.length; i++) {
+        fullText += event.results[i][0].transcript;
+        if (i < event.results.length - 1) fullText += " ";
+      }
+
+      // Show real-time transcription in the text box as the user speaks
+      setInput(fullText);
     };
 
     recognitionRef.current.onerror = () => {
-      setIsListening(false);
+      stopListening();
+    };
+
+    recognitionRef.current.onend = () => {
+      stopListening();
     };
   };
 
