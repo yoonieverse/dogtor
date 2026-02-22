@@ -75,7 +75,7 @@ function Record() {
       
       // Personalize greeting based on body parts selected
       const bodyParts = getBodyParts();
-      let greeting = "Hi! I'm Dogster 🐶. ";
+      let greeting = "Hi! I'm Dogtor 🐶. ";
       
       if (bodyParts && bodyParts.length > 0) {
         const bodyPartLabels = {

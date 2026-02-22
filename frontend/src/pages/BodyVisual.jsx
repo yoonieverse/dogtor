@@ -188,7 +188,7 @@ export default function BodyVisual() {
           disabled={selectedParts.length === 0}
           style={{ flex: 1 }}
         >
-          Talk to Dog-tor →
+          Talk to Dogtor →
         </button>
       </div>
     </div>
