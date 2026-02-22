@@ -93,7 +93,7 @@ function Record() {
       }
       
       setMessages([{ sender: "dog", text: greeting }]);
-      setTranscript([`Doggy: ${greeting}`]);
+      setTranscript([`Dogtor: ${greeting}`]);
       speak(greeting);
     }
   }, []);
@@ -185,7 +185,7 @@ function Record() {
       // Add AI response to chat
       const dogMessage = { sender: "dog", text: aiResponse };
       setMessages((prev) => [...prev, dogMessage]);
-      setTranscript((prev) => [...prev, `Doggy: ${aiResponse}`]);
+      setTranscript((prev) => [...prev, `Dogtor: ${aiResponse}`]);
       speak(aiResponse);
     } catch (error) {
       console.error("Error calling API:", error);
@@ -204,7 +204,7 @@ function Record() {
         }
       }
       setMessages((prev) => [...prev, { sender: "dog", text: errorMessage }]);
-      setTranscript((prev) => [...prev, `Doggy: ${errorMessage}`]);
+      setTranscript((prev) => [...prev, `Dogtor: ${errorMessage}`]);
     } finally {
       setIsLoading(false);
     }
@@ -319,63 +319,138 @@ function Record() {
   };
 
   return (
-    <div style={{ padding: "30px", textAlign: "center" }}>
-      <h1>Talk to Doggy 🐶</h1>
-
-      <img
-        src="/doggy.png"
-        alt="Mascot"
-        style={{ width: "150px", marginBottom: "20px" }}
-      />
-
-      {/* Chat Box */}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        padding: "20px",
+      }}
+    >
+      {/* Outer border container */}
       <div
         style={{
-          border: "1px solid #ccc",
-          height: "300px",
-          overflowY: "auto",
-          padding: "10px",
-          marginBottom: "20px",
+          border: "8px solid #EBA7A7",
+          padding: "4px",
+          borderRadius: "8px",
+          position: "relative",
+          maxWidth: "700px",
+          width: "100%",
         }}
       >
-        {messages.map((msg, index) => (
+        {/* Inner border container */}
+        <div
+          style={{
+            border: "8px solid #F5D6D6",
+            backgroundColor: "#F8F8F8",
+            padding: "40px",
+            borderRadius: "4px",
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <style>{`
+            @keyframes record-btn-pulse {
+              0%, 100% { transform: scale(1); }
+              50% { transform: scale(1.05); }
+            }
+            .record-btn-animated {
+              cursor: pointer;
+              animation: record-btn-pulse 2s ease-in-out infinite;
+            }
+            .record-btn-animated:hover {
+              animation: none;
+              transform: scale(1.08);
+            }
+            .record-btn-animated:disabled, .record-btn-disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+              animation: none;
+            }
+          `}</style>
+
+          <h1 style={{ textAlign: "center", marginBottom: "8px" }}>Talk to Dogtor!</h1>
+
+          <img
+            src="/src/assets/dog1.gif"
+            alt="Dogtor"
+            style={{ width: "150px", marginBottom: "20px" }}
+          />
+
+          {/* Chat Box */}
           <div
-            key={index}
             style={{
-              textAlign: msg.sender === "user" ? "right" : "left",
-              margin: "10px 0",
+              border: "1px solid #F5D6D6",
+              backgroundColor: "#fff",
+              height: "300px",
+              overflowY: "auto",
+              padding: "10px",
+              marginBottom: "20px",
+              width: "100%",
+              borderRadius: "8px",
+              boxSizing: "border-box",
             }}
           >
-            <b>{msg.sender === "user" ? "You" : "Doggy"}:</b> {msg.text}
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                style={{
+                  textAlign: msg.sender === "user" ? "right" : "left",
+                  margin: "10px 0",
+                }}
+              >
+                <b>{msg.sender === "user" ? "You" : "Dogtor"}:</b> {msg.text}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Input */}
-      <input
-        type="text"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Type your response..."
-        style={{ padding: "8px", width: "60%" }}
-      />
+          {/* Input row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", flexWrap: "wrap", justifyContent: "center", marginBottom: "16px" }}>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your response..."
+              style={{ padding: "8px", flex: "1", minWidth: "200px", maxWidth: "400px", borderRadius: "6px", border: "1px solid #F5D6D6" }}
+            />
+            <img
+              src="/src/assets/send.png"
+              alt="Send"
+              onClick={() => !isLoading && sendMessage()}
+              className={isLoading ? "record-btn-disabled" : "record-btn-animated"}
+              style={{
+                maxWidth: "48px",
+                height: "auto",
+                opacity: isLoading ? 0.5 : 1,
+              }}
+            />
+            <img
+              src="/src/assets/speak.png"
+              alt="Speak"
+              onClick={startListening}
+              className="record-btn-animated"
+              style={{
+                maxWidth: "58px",
+                height: "auto",
+                opacity: isListening ? 0.9 : 1,
+              }}
+            />
+          </div>
 
-      <button onClick={sendMessage} disabled={isLoading} style={{ marginLeft: "10px" }}>
-        {isLoading ? "Sending..." : "Send"}
-      </button>
-
-      <button
-        onClick={startListening}
-        style={{ marginLeft: "10px" }}
-      >
-        🎤 {isListening ? "Listening..." : "Speak"}
-      </button>
-
-      <div style={{ marginTop: "20px" }}>
-        
-        <button onClick={finishConversation}>
-          Finish & View Results
-        </button>
+          <div style={{ marginTop: "8px" }}>
+            <img
+              src="/src/assets/finish.png"
+              alt="Finish & View Results"
+              onClick={finishConversation}
+              className="record-btn-animated"
+              style={{ cursor: "pointer", maxWidth: "200px", height: "auto" }}
+            />
+          </div>
+        </div>
       </div>
 
       {showTranscriptPopup && (
