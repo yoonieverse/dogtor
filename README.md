@@ -1,7 +1,7 @@
 # dogtor
 
 
-
+npm install vite --save-dev --legacy-peer-deps
 
 cd frontend
 npm install
