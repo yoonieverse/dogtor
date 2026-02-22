@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
 
@@ -7,6 +7,39 @@ function ResultsPage() {
   const navigate = useNavigate();
   const transcript = location.state?.transcript || [];
   const [showPopup, setShowPopup] = useState(false);
+  const [prescreeningData, setPrescreeningData] = useState({});
+  const [bodyParts, setBodyParts] = useState([]);
+
+  // Get prescreening data and body parts from sessionStorage
+  useEffect(() => {
+    try {
+      const storedPrescreening = sessionStorage.getItem('prescreeningData');
+      if (storedPrescreening) {
+        setPrescreeningData(JSON.parse(storedPrescreening));
+      }
+    } catch (e) {
+      console.error('Error loading prescreening data:', e);
+    }
+
+    try {
+      const storedBodyParts = sessionStorage.getItem('selectedBodyParts');
+      if (storedBodyParts) {
+        setBodyParts(JSON.parse(storedBodyParts));
+      }
+    } catch (e) {
+      console.error('Error loading body parts:', e);
+    }
+  }, []);
+
+  const bodyPartLabels = {
+    head: 'Head', chest: 'Chest', tummy: 'Tummy',
+    'left-arm': 'Left Arm', 'right-arm': 'Right Arm',
+    'left-hand': 'Left Hand', 'right-hand': 'Right Hand',
+    'left-leg': 'Left Leg', 'right-leg': 'Right Leg',
+    'left-foot': 'Left Foot', 'right-foot': 'Right Foot',
+    eyes: 'Eyes', ears: 'Ears', nose: 'Nose', mouth: 'Mouth',
+  };
+
 
   const generatePDF = () => {
     const doc = new jsPDF();
@@ -33,17 +66,223 @@ function ResultsPage() {
   };
 
   return (
-    <div style={{ padding: "30px" }}>
-      <h1>Results</h1>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        padding: "20px",
+      }}
+    >
+      {/* Outer border container */}
+      <div
+        style={{
+          border: "8px solid #EBA7A7",
+          padding: "4px",
+          borderRadius: "8px",
+          position: "relative",
+          maxWidth: "800px",
+          width: "100%",
+        }}
+      >
+        {/* Inner border container */}
+        <div
+          style={{
+            border: "8px solid #F5D6D6",
+            backgroundColor: "#F8F8F8",
+            padding: "40px",
+            borderRadius: "4px",
+            position: "relative",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <style>{`
+            @keyframes dog-bounce {
+              0%, 100% { transform: translateY(0) rotate(0deg); }
+              25% { transform: translateY(-10px) rotate(-5deg); }
+              50% { transform: translateY(-5px) rotate(0deg); }
+              75% { transform: translateY(-10px) rotate(5deg); }
+            }
+            .dog-animated {
+              animation: dog-bounce 2s ease-in-out infinite;
+            }
+          `}</style>
 
-      <button onClick={() => setShowPopup(true)}>
-        View transcript
-      </button>
+          <h1 style={{ textAlign: "center", marginBottom: "20px" }}>Results</h1>
 
-      <button onClick={() => navigate("/")}>
-        Home
-      </button>
+          {/* Dog with animation */}
+          <img
+            src="/src/assets/dog3.png"
+            alt="Dogtor"
+            className="dog-animated"
+            style={{ width: "180px", height: "auto", marginBottom: "30px" }}
+          />
 
+          {/* Prescreening Results */}
+          {Object.keys(prescreeningData).length > 0 && (
+            <div
+              style={{
+                width: "100%",
+                backgroundColor: "#fff",
+                padding: "20px",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                border: "1px solid #F5D6D6",
+              }}
+            >
+              <h2 style={{ marginTop: 0, color: "#EBA7A7", marginBottom: "15px" }}>
+                Prescreening Information
+              </h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {prescreeningData.age && (
+                  <div>
+                    <strong>Age:</strong> {prescreeningData.age}
+                  </div>
+                )}
+                {prescreeningData.weight && (
+                  <div>
+                    <strong>Weight:</strong> {prescreeningData.weight}
+                  </div>
+                )}
+                {prescreeningData.height && (
+                  <div>
+                    <strong>Height:</strong> {prescreeningData.height}
+                  </div>
+                )}
+                {prescreeningData.allergies && (
+                  <div>
+                    <strong>Known Allergies:</strong> {prescreeningData.allergies}
+                  </div>
+                )}
+                {prescreeningData.chronicConditions && (
+                  <div>
+                    <strong>Chronic Conditions/Medications:</strong> {prescreeningData.chronicConditions}
+                  </div>
+                )}
+                {prescreeningData.healthChanges && (
+                  <div>
+                    <strong>Major Health Changes:</strong> {prescreeningData.healthChanges}
+                  </div>
+                )}
+                {prescreeningData.weightChanges && (
+                  <div>
+                    <strong>Weight Changes:</strong> {prescreeningData.weightChanges}
+                  </div>
+                )}
+                {prescreeningData.medications && (
+                  <div>
+                    <strong>Current Medications:</strong> {prescreeningData.medications}
+                  </div>
+                )}
+                {prescreeningData.pastMedicalHistory && (
+                  <div>
+                    <strong>Past Medical History:</strong> {prescreeningData.pastMedicalHistory}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Body Analysis Results */}
+          {bodyParts.length > 0 && (
+            <div
+              style={{
+                width: "100%",
+                backgroundColor: "#fff",
+                padding: "20px",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                border: "1px solid #F5D6D6",
+              }}
+            >
+              <h2 style={{ marginTop: 0, color: "#EBA7A7", marginBottom: "15px" }}>
+                Body Analysis
+              </h2>
+              <div>
+                <strong>Selected Body Parts:</strong>{" "}
+                {bodyParts.map((part, index) => (
+                  <span key={part}>
+                    {bodyPartLabels[part] || part}
+                    {index < bodyParts.length - 1 ? ", " : ""}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Diagnosis Prediction */}
+          {(bodyParts.length > 0 || Object.keys(prescreeningData).length > 0 || transcript.length > 0) && (
+            <div
+              style={{
+                width: "100%",
+                backgroundColor: "#fff",
+                padding: "20px",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                border: "2px solid #EBA7A7",
+                boxShadow: "0 2px 8px rgba(235, 167, 167, 0.2)",
+              }}
+            >
+              <h2 style={{ marginTop: 0, color: "#EBA7A7", marginBottom: "0", fontSize: "24px" }}>
+                🩺 Diagnosis Prediction & Analysis
+              </h2>
+            </div>
+          )}
+
+          {/* Conversation Transcript Summary */}
+          {transcript.length > 0 && (
+            <div
+              style={{
+                width: "100%",
+                backgroundColor: "#fff",
+                padding: "20px",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                border: "1px solid #F5D6D6",
+              }}
+            >
+              <h2 style={{ marginTop: 0, color: "#EBA7A7", marginBottom: "15px" }}>
+                Conversation Summary
+              </h2>
+              <p style={{ marginBottom: "10px" }}>
+                You had a conversation with Dogtor about your health concerns.
+              </p>
+              <button
+                onClick={() => setShowPopup(true)}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "6px",
+                  border: "1px solid #EBA7A7",
+                  backgroundColor: "#F5D6D6",
+                  color: "#333",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                View Full Transcript
+              </button>
+            </div>
+          )}
+
+          {/* Home Button */}
+          <div style={{ marginTop: "20px" }}>
+            <img
+              src="/src/assets/home.png"
+              alt="Home"
+              onClick={() => navigate("/")}
+              width={150}
+              className="home-btn-animated"
+              style={{ cursor: "pointer", maxWidth: "200px", height: "auto" }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Transcript Popup */}
       {showPopup && (
         <div
           style={{
