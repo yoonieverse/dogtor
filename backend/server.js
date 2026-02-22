@@ -128,6 +128,15 @@ app.post('/analyze-diagnosis', async (req, res) => {
     contextParts.push('Body areas of concern: ' + bodyPartsList);
     const contextBlock = contextParts.length ? '\n\nContext:\n' + contextParts.join('\n') : '';
 
+    const systemPrompt = `You are a supportive medical assistant that helps summarize a child's health conversation for caregivers. Based ONLY on the conversation transcript and context provided, you must respond with a valid JSON object (no other text) with exactly these keys:
+
+    - "summary": 2-4 sentences in plain language summarizing what the child reported (symptoms, how they feel, duration if mentioned).
+    - "symptoms": array of strings listing each symptom or concern mentioned (e.g. ["headache", "sore throat"]).
+    - "possibleCauses": array of 1-4 short, child-friendly possible causes or conditions (e.g. "common cold", "mild dehydration"). Keep it simple and non-alarming. Do not diagnose; these are only possibilities.
+    - "recommendations": array of 2-5 short, actionable recommendations (e.g. "Rest and drink water", "Have a parent check temperature", "See a doctor if it gets worse"). Always include involving a parent/guardian and seeing a real doctor when appropriate.
+
+    Important: You are NOT a doctor. Frame everything as "possible" and "suggest talking to a doctor or parent." Output ONLY the JSON object, no markdown or extra text.`;
+
     const userContent = `Conversation transcript:\n${transcript.join('\n')}${contextBlock}`;
 
     const response = await client.chat.completions.create({
@@ -164,7 +173,7 @@ app.post('/analyze-diagnosis', async (req, res) => {
     const userMessage = !apiKey
       ? 'Server missing API key.'
       : error.status === 429
-        ? 'here you go:'
+        ? 'Here you go:'
         : error.message || 'Analysis failed.';
     res.status(500).json({ error: userMessage });
   }
