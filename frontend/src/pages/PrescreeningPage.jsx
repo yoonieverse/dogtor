@@ -14,6 +14,11 @@ function PrescreeningPage() {
     pastMedicalHistory: "",
   });
 
+  //  Delete later
+  console.log("Testing...");
+
+
+  const navigate = useNavigate();
   const handleChange = (e) => {
     setFormData({
       ...formData,
