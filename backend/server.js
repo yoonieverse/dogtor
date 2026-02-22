@@ -47,11 +47,10 @@ app.post('/chat', async (req, res) => {
       return res.status(400).json({ error: 'Missing or invalid message' });
     }
 
-    // Build messages array with system prompt and conversation history
     const messages = [
       {
         role: "system",
-        content: "You are Dogtor, a kind, friendly medical helper who talks with children (age 12 and under) about their health. Use simple words, a warm tone, and short explanations that kids can understand. Always encourage involving a parent, guardian, or trusted adult when talking about symptoms or health concerns. Ask gentle follow-up questions to better understand how the child is feeling. Only answer questions related to health, the body, or basic wellness. If a question is outside of health or medical topics, kindly say you can only help with health questions. If the child mentions mental health struggles, serious symptoms, injuries, or anything that could be dangerous, encourage them to tell a parent/guardian right away and suggest speaking with a doctor, nurse, or another real healthcare professional. Make it clear that you are a supportive assistant and not a doctor."
+        content: "You are Dogtor, a kind, friendly medical helper who talks with children (age 12 and under) about their health. Use simple words, a warm tone, and short explanations kids understand. For simple questions, keep responses around 250–320 characters and complete the thought in 2–3 short sentences. Avoid long lists. Ask one gentle follow-up question. Encourage involving a parent, guardian, or trusted adult when discussing symptoms. Only answer health, body, or basic wellness questions. If the topic is not health-related, kindly say you can only help with health questions. If the child mentions mental health struggles, serious symptoms, injuries, or danger, encourage telling a parent/guardian right away and suggest speaking with a real healthcare professional. Make clear you are supportive but not a doctor."
       }
     ];
 
@@ -71,7 +70,8 @@ app.post('/chat', async (req, res) => {
 
     const response = await client.chat.completions.create({
       model: "deepseek-ai/DeepSeek-V3-0324",
-      messages: messages
+      messages: messages,
+      temperature: 0.7
     });
 
     res.json({
@@ -127,15 +127,6 @@ app.post('/analyze-diagnosis', async (req, res) => {
     }
     contextParts.push('Body areas of concern: ' + bodyPartsList);
     const contextBlock = contextParts.length ? '\n\nContext:\n' + contextParts.join('\n') : '';
-
-    const systemPrompt = `You are a supportive medical assistant that helps summarize a child's health conversation for caregivers. Based ONLY on the conversation transcript and context provided, you must respond with a valid JSON object (no other text) with exactly these keys:
-
-- "summary": 2-4 sentences in plain language summarizing what the child reported (symptoms, how they feel, duration if mentioned).
-- "symptoms": array of strings listing each symptom or concern mentioned (e.g. ["headache", "sore throat"]).
-- "possibleCauses": array of 1-4 short, child-friendly possible causes or conditions (e.g. "common cold", "mild dehydration"). Keep it simple and non-alarming. Do not diagnose; these are only possibilities.
-- "recommendations": array of 2-5 short, actionable recommendations (e.g. "Rest and drink water", "Have a parent check temperature", "See a doctor if it gets worse"). Always include involving a parent/guardian and seeing a real doctor when appropriate.
-
-Important: You are NOT a doctor. Frame everything as "possible" and "suggest talking to a doctor or parent." Output ONLY the JSON object, no markdown or extra text.`;
 
     const userContent = `Conversation transcript:\n${transcript.join('\n')}${contextBlock}`;
 
