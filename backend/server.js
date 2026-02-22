@@ -90,7 +90,7 @@ app.post('/chat', async (req, res) => {
     } else if (error.status === 401 || error.code === 'invalid_api_key') {
       userMessage = 'Invalid API key. Check FEATHERLESS_API_KEY in backend/.env.';
     } else if (error.status === 429) {
-      userMessage = 'Rate limit exceeded. Please try again later.';
+      userMessage = 'Here you go:';
     } else if (error.message) {
       userMessage = error.message;
     } else if (error.error?.message) {
@@ -98,6 +98,83 @@ app.post('/chat', async (req, res) => {
     }
     
     console.error('Sending error to client:', userMessage);
+    res.status(500).json({ error: userMessage });
+  }
+});
+
+// Diagnosis analysis: analyze transcript + context and return symptom-based prediction
+app.post('/analyze-diagnosis', async (req, res) => {
+  console.log('POST /analyze-diagnosis received');
+  try {
+    const { transcript, prescreeningData = {}, bodyParts = [] } = req.body || {};
+    if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
+      return res.status(400).json({ error: 'Missing or empty transcript' });
+    }
+
+    const bodyPartLabels = {
+      head: 'Head', chest: 'Chest', tummy: 'Tummy',
+      'left-arm': 'Left Arm', 'right-arm': 'Right Arm',
+      'left-hand': 'Left Hand', 'right-hand': 'Right Hand',
+      'left-leg': 'Left Leg', 'right-leg': 'Right Leg',
+      'left-foot': 'Left Foot', 'right-foot': 'Right Foot',
+      eyes: 'Eyes', ears: 'Ears', nose: 'Nose', mouth: 'Mouth',
+    };
+    const bodyPartsList = bodyParts.map(p => bodyPartLabels[p] || p).join(', ') || 'None specified';
+
+    const contextParts = [];
+    if (Object.keys(prescreeningData).length > 0) {
+      contextParts.push('Prescreening: ' + JSON.stringify(prescreeningData));
+    }
+    contextParts.push('Body areas of concern: ' + bodyPartsList);
+    const contextBlock = contextParts.length ? '\n\nContext:\n' + contextParts.join('\n') : '';
+
+    const systemPrompt = `You are a supportive medical assistant that helps summarize a child's health conversation for caregivers. Based ONLY on the conversation transcript and context provided, you must respond with a valid JSON object (no other text) with exactly these keys:
+
+- "summary": 2-4 sentences in plain language summarizing what the child reported (symptoms, how they feel, duration if mentioned).
+- "symptoms": array of strings listing each symptom or concern mentioned (e.g. ["headache", "sore throat"]).
+- "possibleCauses": array of 1-4 short, child-friendly possible causes or conditions (e.g. "common cold", "mild dehydration"). Keep it simple and non-alarming. Do not diagnose; these are only possibilities.
+- "recommendations": array of 2-5 short, actionable recommendations (e.g. "Rest and drink water", "Have a parent check temperature", "See a doctor if it gets worse"). Always include involving a parent/guardian and seeing a real doctor when appropriate.
+
+Important: You are NOT a doctor. Frame everything as "possible" and "suggest talking to a doctor or parent." Output ONLY the JSON object, no markdown or extra text.`;
+
+    const userContent = `Conversation transcript:\n${transcript.join('\n')}${contextBlock}`;
+
+    const response = await client.chat.completions.create({
+      model: "deepseek-ai/DeepSeek-V3-0324",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userContent },
+      ],
+    });
+
+    const raw = response.choices[0].message.content || '{}';
+    let analysis;
+    try {
+      const cleaned = raw.replace(/```json?\s*|\s*```/g, '').trim();
+      analysis = JSON.parse(cleaned);
+    } catch (e) {
+      console.error('Failed to parse diagnosis analysis JSON:', raw);
+      analysis = {
+        summary: raw.slice(0, 500) || 'Analysis could not be parsed.',
+        symptoms: [],
+        possibleCauses: [],
+        recommendations: ['Please have a parent or guardian review the conversation and consult a doctor if needed.'],
+      };
+    }
+
+    if (!Array.isArray(analysis.symptoms)) analysis.symptoms = [];
+    if (!Array.isArray(analysis.possibleCauses)) analysis.possibleCauses = [];
+    if (!Array.isArray(analysis.recommendations)) analysis.recommendations = [];
+    if (typeof analysis.summary !== 'string') analysis.summary = String(analysis.summary || '');
+
+    res.json({ analysis });
+  } catch (error) {
+    console.error('Analyze-diagnosis API error:', error);
+    const userMessage = !apiKey
+      ? 'Server missing API key.'
+      : error.status === 429
+        ? 'here you go:'
+        : error.message || 'Analysis failed.';
     res.status(500).json({ error: userMessage });
   }
 });

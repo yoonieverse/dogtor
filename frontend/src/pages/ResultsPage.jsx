@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
+import downloadImg from "../assets/download.png";
 
 function ResultsPage() {
   const location = useLocation();
@@ -9,6 +11,10 @@ function ResultsPage() {
   const [showPopup, setShowPopup] = useState(false);
   const [prescreeningData, setPrescreeningData] = useState({});
   const [bodyParts, setBodyParts] = useState([]);
+  const [diagnosisAnalysis, setDiagnosisAnalysis] = useState(null);
+  const [loadingDiagnosis, setLoadingDiagnosis] = useState(false);
+  const [diagnosisError, setDiagnosisError] = useState(null);
+  const resultsContainerRef = useRef(null);
 
   // Get prescreening data and body parts from sessionStorage
   useEffect(() => {
@@ -31,6 +37,46 @@ function ResultsPage() {
     }
   }, []);
 
+  // Run AI diagnosis analysis when we have a transcript
+  useEffect(() => {
+    if (transcript.length === 0) return;
+
+    setLoadingDiagnosis(true);
+    setDiagnosisError(null);
+
+    let prescreening = {};
+    let parts = [];
+    try {
+      const stored = sessionStorage.getItem('prescreeningData');
+      if (stored) prescreening = JSON.parse(stored);
+      const storedParts = sessionStorage.getItem('selectedBodyParts');
+      if (storedParts) parts = JSON.parse(storedParts);
+    } catch (_) {}
+
+    fetch("/api/analyze-diagnosis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        transcript,
+        prescreeningData: prescreening,
+        bodyParts: parts,
+      }),
+    })
+      .then((res) => {
+        if (!res.ok) return res.json().then((d) => { throw new Error(d.error || "Analysis failed"); });
+        return res.json();
+      })
+      .then((data) => {
+        setDiagnosisAnalysis(data.analysis || null);
+      })
+      .catch((err) => {
+        setDiagnosisError(err.message || "Could not load diagnosis analysis.");
+      })
+      .finally(() => {
+        setLoadingDiagnosis(false);
+      });
+  }, [transcript.length]); // Re-run when transcript is available; prescreening/bodyParts may load async
+
   const bodyPartLabels = {
     head: 'Head', chest: 'Chest', tummy: 'Tummy',
     'left-arm': 'Left Arm', 'right-arm': 'Right Arm',
@@ -40,6 +86,77 @@ function ResultsPage() {
     eyes: 'Eyes', ears: 'Ears', nose: 'Nose', mouth: 'Mouth',
   };
 
+
+  const addSection = (doc, title, getContent) => {
+    let y = doc.getY();
+    if (y < 20) y = 20;
+    if (y > 250) { 
+      doc.addPage(); 
+      y = 20; 
+    } else if (y > 30) {
+      y += 10;
+    }
+    doc.setY(y);
+    
+    doc.setFontSize(14);
+    doc.setTextColor(235, 167, 167);
+    doc.text(title, 20, y);
+    y += 8;
+    
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    const content = getContent();
+    const lines = doc.splitTextToSize(content, 170);
+    const lineHeight = 6;
+    
+    for (let i = 0; i < lines.length; i++) {
+      if (y > 270) { 
+        doc.addPage(); 
+        y = 20; 
+      }
+      doc.text(lines[i], 20, y);
+      y += lineHeight;
+    }
+    doc.setY(y + 6);
+  };
+
+  const generateFullPDF = async () => {
+    try {
+      if (!resultsContainerRef.current) {
+        alert("Unable to capture page. Please try again.");
+        return;
+      }
+
+      // Capture screenshot of the results container
+      const canvas = await html2canvas(resultsContainerRef.current, {
+        backgroundColor: "#F8F8F8",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+
+      // Convert canvas to image
+      const imgData = canvas.toDataURL("image/png");
+      
+      // Create PDF with the screenshot
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const pdfWidth = 210; // A4 width in mm
+      const pdfHeight = (imgHeight * pdfWidth) / imgWidth;
+      
+      const doc = new jsPDF({
+        orientation: pdfHeight > pdfWidth ? "portrait" : "landscape",
+        unit: "mm",
+        format: [pdfWidth, pdfHeight],
+      });
+
+      doc.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      doc.save("dogtor_results.pdf");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
+    }
+  };
 
   const generatePDF = () => {
     const doc = new jsPDF();
@@ -78,6 +195,7 @@ function ResultsPage() {
     >
       {/* Outer border container */}
       <div
+        ref={resultsContainerRef}
         style={{
           border: "8px solid #EBA7A7",
           padding: "4px",
@@ -227,9 +345,51 @@ function ResultsPage() {
                 boxShadow: "0 2px 8px rgba(235, 167, 167, 0.2)",
               }}
             >
-              <h2 style={{ marginTop: 0, color: "#EBA7A7", marginBottom: "0", fontSize: "24px" }}>
+              <h2 style={{ marginTop: 0, color: "#EBA7A7", marginBottom: "15px", fontSize: "24px" }}>
                 🩺 Diagnosis Prediction & Analysis
               </h2>
+              {loadingDiagnosis && (
+                <p style={{ color: "#666", margin: 0 }}>Analyzing conversation and symptoms…</p>
+              )}
+              {diagnosisError && !loadingDiagnosis && (
+                <p style={{ color: "#c00", margin: 0 }}>{diagnosisError}</p>
+              )}
+              {diagnosisAnalysis && !loadingDiagnosis && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {diagnosisAnalysis.summary && (
+                    <div>
+                      <strong style={{ color: "#EBA7A7" }}>Summary</strong>
+                      <p style={{ margin: "4px 0 0", lineHeight: 1.5 }}>{diagnosisAnalysis.summary}</p>
+                    </div>
+                  )}
+                  {diagnosisAnalysis.symptoms?.length > 0 && (
+                    <div>
+                      <strong style={{ color: "#EBA7A7" }}>Symptoms noted</strong>
+                      <p style={{ margin: "4px 0 0" }}>{diagnosisAnalysis.symptoms.join(", ")}</p>
+                    </div>
+                  )}
+                  {diagnosisAnalysis.possibleCauses?.length > 0 && (
+                    <div>
+                      <strong style={{ color: "#EBA7A7" }}>Possible causes (not a diagnosis)</strong>
+                      <ul style={{ margin: "4px 0 0", paddingLeft: "20px" }}>
+                        {diagnosisAnalysis.possibleCauses.map((c, i) => (
+                          <li key={i}>{c}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {diagnosisAnalysis.recommendations?.length > 0 && (
+                    <div>
+                      <strong style={{ color: "#EBA7A7" }}>Recommendations</strong>
+                      <ul style={{ margin: "4px 0 0", paddingLeft: "20px" }}>
+                        {diagnosisAnalysis.recommendations.map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -267,6 +427,29 @@ function ResultsPage() {
               </button>
             </div>
           )}
+
+          {/* Download full report PDF */}
+          <div style={{ marginTop: "12px", marginBottom: "8px" }}>
+            <button
+              onClick={generateFullPDF}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 20px",
+                borderRadius: "8px",
+                border: "2px solid #EBA7A7",
+                backgroundColor: "#F5D6D6",
+                color: "#333",
+                cursor: "pointer",
+                fontWeight: "bold",
+                fontSize: "16px",
+              }}
+            >
+              <img src={downloadImg} alt="" width={24} height={24} />
+              Download full report (PDF)
+            </button>
+          </div>
 
           {/* Home Button */}
           <div style={{ marginTop: "20px" }}>
