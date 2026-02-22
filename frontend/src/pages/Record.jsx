@@ -13,21 +13,13 @@ function Record() {
   const [input, setInput] = useState("");
   const [transcript, setTranscript] = useState([]);
   const [isListening, setIsListening] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const location = useLocation();
 
   const { prescreeningData } = location.state || {};
 
-
-  // Mascot Questions
-  const questions = [
-    "Hi! I'm Dogster. What brings you here today?",
-    "How are you feeling right now?",
-    "Where does it hurt?",
-  ];
-
-  const [questionIndex, setQuestionIndex] = useState(0);
   const [showTranscriptPopup, setShowTranscriptPopup] = useState(false);
-  const askedIndexRef = useRef(-1);
+  const hasStartedConversation = useRef(false);
 
   // Text-to-Speech
   const speak = (text) => {
@@ -35,17 +27,16 @@ function Record() {
     speechSynthesis.speak(utterance);
   };
 
-  // Ask next question
+  // Start conversation with greeting
   useEffect(() => {
-    if (questionIndex < questions.length && askedIndexRef.current !== questionIndex) {
-      askedIndexRef.current = questionIndex;
-      const question = questions[questionIndex];
-
-      setMessages((prev) => [...prev, { sender: "dog", text: question }]);
-      setTranscript((prev) => [...prev, `Doggy: ${question}`]);
-      speak(question);
+    if (!hasStartedConversation.current && messages.length === 0) {
+      hasStartedConversation.current = true;
+      const greeting = "Hi! I'm Dogster 🐶. What brings you here today?";
+      setMessages([{ sender: "dog", text: greeting }]);
+      setTranscript([`Doggy: ${greeting}`]);
+      speak(greeting);
     }
-  }, [questionIndex]);
+  }, []);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -56,9 +47,9 @@ function Record() {
     };
   }, []);
 
-  // Send typed message
-  const sendMessage = () => {
-    if (!input.trim()) return;
+  // Send message and get AI response
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading) return;
 
     const textToSend = input.trim();
     setInput(""); // clear text box immediately
@@ -69,9 +60,93 @@ function Record() {
       stopListening();
     }
 
-    setMessages((prev) => [...prev, { sender: "user", text: textToSend }]);
+    // Add user message to chat
+    const userMessage = { sender: "user", text: textToSend };
+    setMessages((prev) => [...prev, userMessage]);
     setTranscript((prev) => [...prev, `User: ${textToSend}`]);
-    setQuestionIndex((prev) => prev + 1);
+
+    setIsLoading(true);
+
+    try {
+      console.log("Sending message to API:", textToSend);
+      // Call API to get AI response
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: textToSend,
+          conversationHistory: messages, // Send conversation history for context
+        }),
+      });
+      
+      console.log("Response status:", response.status, response.statusText);
+      console.log("Response ok:", response.ok);
+
+      if (!response.ok) {
+        let errMsg = `Server error (${response.status})`;
+        try {
+          // Clone the response so we can read it multiple times if needed
+          const responseClone = response.clone();
+          const errData = await responseClone.json();
+          console.error("Backend error response:", errData);
+          if (errData && errData.error) {
+            errMsg = errData.error;
+          } else if (errData && typeof errData === 'string') {
+            errMsg = errData;
+          }
+        } catch (parseError) {
+          console.error("Failed to parse error response as JSON:", parseError);
+          try {
+            const text = await response.text();
+            console.error("Response text:", text);
+            if (text) {
+              errMsg = `Server error (${response.status}): ${text}`;
+            }
+          } catch (textError) {
+            console.error("Failed to read response text:", textError);
+            errMsg = `Server error (${response.status}): Unable to read error message`;
+          }
+        }
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      console.log("Backend response data:", data);
+      
+      if (!data || !data.reply) {
+        throw new Error(data?.error || "Invalid response format from server");
+      }
+      
+      const aiResponse = data.reply;
+
+      // Add AI response to chat
+      const dogMessage = { sender: "dog", text: aiResponse };
+      setMessages((prev) => [...prev, dogMessage]);
+      setTranscript((prev) => [...prev, `Doggy: ${aiResponse}`]);
+      speak(aiResponse);
+    } catch (error) {
+      console.error("Error calling API:", error);
+      console.error("Error message:", error.message);
+      let errorMessage = "Sorry, I'm having trouble connecting. Please try again.";
+      if (error.message) {
+        if (error.message === "Failed to fetch") {
+          errorMessage = "Could not reach the server. Make sure the backend is running on port 5000 (run 'npm start' in dogtor/backend folder).";
+        } else if (error.message.includes("403") || error.message.includes("Forbidden")) {
+          errorMessage = "403 Forbidden: Cannot connect to backend. Please:\n1. Open a terminal and run: cd dogtor/backend && npm start\n2. Wait for 'Server running on port 5000'\n3. Test: Open http://localhost:5000 in browser (should show 'Backend is running!')\n4. Restart frontend dev server if you changed vite.config.ts\n5. Try again";
+        } else if (error.message.includes("API key") || error.message.includes("Invalid") || error.message.includes("missing")) {
+          errorMessage = "Server configuration issue: " + error.message + ". Check backend .env and restart.";
+        } else {
+          // Always show the actual error message from backend
+          errorMessage = error.message;
+        }
+      }
+      setMessages((prev) => [...prev, { sender: "dog", text: errorMessage }]);
+      setTranscript((prev) => [...prev, `Doggy: ${errorMessage}`]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Stop listening and clear timeout
@@ -224,8 +299,8 @@ function Record() {
         style={{ padding: "8px", width: "60%" }}
       />
 
-      <button onClick={sendMessage} style={{ marginLeft: "10px" }}>
-        Send
+      <button onClick={sendMessage} disabled={isLoading} style={{ marginLeft: "10px" }}>
+        {isLoading ? "Sending..." : "Send"}
       </button>
 
       <button
