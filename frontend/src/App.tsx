@@ -13,6 +13,7 @@ const App: FC = () => {
   const ResultComponent = Result as ComponentType;
   const RecordComponent = Record as ComponentType;
 
+
   return (
     <Router>
       <Routes>
