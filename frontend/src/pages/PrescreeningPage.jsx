@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function PrescreeningPage() {
   const [formData, setFormData] = useState({
@@ -14,16 +14,17 @@ function PrescreeningPage() {
     pastMedicalHistory: "",
   });
 
-  //  Delete later
-  console.log("Testing...");
-
-
   const navigate = useNavigate();
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const handleSubmit = (e) => {
+    const prescreeningData = {...formData};
+    navigate("/record", { state: { prescreeningData } });
   };
 
   return (

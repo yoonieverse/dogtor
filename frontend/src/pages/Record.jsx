@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
+import { useLocation } from "react-router-dom";
 
 function Record() {
   const navigate = useNavigate();
@@ -10,16 +11,21 @@ function Record() {
   const [input, setInput] = useState("");
   const [transcript, setTranscript] = useState([]);
   const [isListening, setIsListening] = useState(false);
+  const location = useLocation();
+
+  const { prescreeningData } = location.state || {};
+
 
   // Mascot Questions
   const questions = [
-    "Hi! I'm Doggy 🐶 What brings you here today?",
+    "Hi! I'm Dogster. What brings you here today?",
     "How are you feeling right now?",
-    "Is there anything specific you'd like to share?",
+    "Where does it hurt?",
   ];
 
   const [questionIndex, setQuestionIndex] = useState(0);
   const [showTranscriptPopup, setShowTranscriptPopup] = useState(false);
+  const askedIndexRef = useRef(-1);
 
   // Text-to-Speech
   const speak = (text) => {
@@ -29,7 +35,8 @@ function Record() {
 
   // Ask next question
   useEffect(() => {
-    if (questionIndex < questions.length) {
+    if (questionIndex < questions.length && askedIndexRef.current !== questionIndex) {
+      askedIndexRef.current = questionIndex;
       const question = questions[questionIndex];
 
       setMessages((prev) => [...prev, { sender: "dog", text: question }]);
