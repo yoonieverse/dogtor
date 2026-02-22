@@ -69,18 +69,39 @@ export default function BodyVisual() {
 
   return (
     <div style={{
-      minHeight: '100vh',
-      padding: '24px',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '100vh',
+      padding: '20px',
     }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '6px' }}>
-        Where is your ouchie? 🐶
-      </h1>
-      <p style={{ textAlign: 'center', marginBottom: '20px', color: '#555' }}>
-        Tap the body parts that hurt or feel funny
-      </p>
+      {/* Outer border container */}
+      <div style={{
+        border: '8px solid #EBA7A7', // Outer border - darker pink
+        padding: '4px',
+        borderRadius: '8px',
+        position: 'relative',
+        maxWidth: '600px',
+        width: '100%',
+      }}>
+        {/* Inner border container */}
+        <div style={{
+          border: '8px solid #F5D6D6', // Inner border - lighter pink
+          backgroundColor: '#F8F8F8', // Content background
+          padding: '40px',
+          borderRadius: '4px',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}>
+          <h1 style={{ textAlign: 'center', marginBottom: '6px' }}>
+            Where does it hurt?
+          </h1>
+          <p style={{ textAlign: 'center', marginBottom: '20px', color: '#555' }}>
+            Tap the body parts that hurt or feel funny
+          </p>
 
       {/* ── Blocky figure ── */}
       <div style={{ position: 'relative', width: '220px', height: '330px', marginBottom: '16px' }}>
@@ -178,18 +199,64 @@ export default function BodyVisual() {
         </p>
       )}
 
-      {/* ── Navigation ── */}
-      <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '400px' }}>
-        <button onClick={() => navigate('/prescreen')} style={{ flex: 1 }}>
-          ← Back
-        </button>
-        <button
-          onClick={handleContinue}
-          disabled={selectedParts.length === 0}
-          style={{ flex: 1 }}
-        >
-          Talk to Dogtor →
-        </button>
+          {/* ── Navigation ── */}
+          <style>{`
+            @keyframes next-pulse {
+              0%, 100% { transform: scale(1); }
+              50% { transform: scale(1.05); }
+            }
+            .next-btn-animated {
+              cursor: pointer;
+              animation: next-pulse 2s ease-in-out infinite;
+            }
+            .next-btn-animated:hover {
+              animation: none;
+              transform: scale(1.08);
+            }
+            .next-btn-animated:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+              animation: none;
+            }
+          `}</style>
+          <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '400px', justifyContent: 'center', alignItems: 'center', marginTop: '20px' }}>
+            <img 
+              src="/src/assets/back.png" 
+              alt="Back" 
+              onClick={() => navigate('/prescreen')}
+              style={{ cursor: 'pointer', maxWidth: '150px', height: 'auto' }} 
+            />
+            <img
+              src="/src/assets/nextbutton.png"
+              alt="Next"
+              width={150}
+              height={150}
+              onClick={() => {
+                if (selectedParts.length > 0) {
+                  handleContinue();
+                }
+              }}
+              className={selectedParts.length === 0 ? '' : 'next-btn-animated'}
+              style={{ 
+                cursor: selectedParts.length === 0 ? 'not-allowed' : 'pointer',
+                maxWidth: '200px',
+                height: 'auto',
+                opacity: selectedParts.length === 0 ? 0.5 : 1,
+              }}
+            />
+          </div>
+          
+          {/* Note at bottom */}
+          <p style={{ 
+            textAlign: 'center', 
+            marginTop: '20px', 
+            fontSize: '14px', 
+            color: '#666',
+            fontStyle: 'italic',
+          }}>
+            *Click next to talk to dogtor for a personalized analysis!
+          </p>
+        </div>
       </div>
     </div>
   );
